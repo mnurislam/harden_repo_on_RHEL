@@ -32,7 +32,7 @@ getent group "$userGroup" >/dev/null || {
     getent group "$userGroup" | awk -F : '{ print $1 " group created" }'
 
     printf "Adding %s into %s....\n" "$userName" "$userGroup"
-    usermod -aG "$userGroup" "userName"
+    usermod -aG "$userGroup" "$userName"
 
     printf "Verifying user membership for %s...\n" "$username"
     id -nG "$userName" | grep -q "$userGroup"
