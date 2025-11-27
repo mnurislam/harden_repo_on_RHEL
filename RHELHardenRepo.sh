@@ -5,6 +5,8 @@
 # Email: islam.shuhaili@outlook.com
 # Organization:
 
+## TODO: adding post script
+
 set -euo pipefail
 
 read -p "Enter veeam admin username: " userName
@@ -12,13 +14,13 @@ read -p "Enter veeam admin group: " userGroup
 read -p "Enter harden repo directory: " repoDir
 
 # Check if user exist
-getent passwd "$userName" >/dev/null || {
+sudo getent passwd "$userName" >/dev/null || {
   echo "User not found: $userName"
   exit 1
 }
 
 # Check if group exist
-getent group "$userGroup" >/dev/null || {
+sudo getent group "$userGroup" >/dev/null || {
   echo "Group not found: $userGroup"
   read -rp "Do you want to create a group $userGroup: (y/n) " RESPONSE
 
@@ -26,15 +28,15 @@ getent group "$userGroup" >/dev/null || {
   [yY] | [yY][eE][sS])
     printf "Creating %s group....\n" "$userGroup"
 
-    groupadd "$userGroup"
+    sudo groupadd "$userGroup"
 
     printf "Verifying group creation...\n"
     getent group "$userGroup" | awk -F : '{ print $1 " group created" }'
 
     printf "Adding %s into %s....\n" "$userName" "$userGroup"
-    usermod -aG "$userGroup" "$userName"
+    sudo usermod -aG "$userGroup" "$userName"
 
-    printf "Verifying user membership for %s...\n" "$username"
+    printf "Verifying user membership for %s...\n" "$userName"
     id -nG "$userName" | grep -q "$userGroup"
     ;;
   *)
@@ -53,19 +55,19 @@ echo
 
 printf "Changing ownership of $repoDir to \nUser: $userName \nGroup: $userGroup \n"
 echo
-chown -v "$userName":"$userGroup" "$repoDir"
-printf "$repodir Ownereship and Permission has been changed .... \n"
+sudo chown -v "$userName":"$userGroup" "$repoDir"
+printf "$repoDir Ownereship and Permission has been changed .... \n"
 stat -c $'\nDirectory: %n\nPermission: %a\nOwner: %U\nGroup: %G\n' "$repoDir"
 echo
 
 printf "Changing permission for directory $repoDir \n"
-chmod 700 "$repoDir"
+sudo chmod 700 "$repoDir"
 printf "$repoDir permission has been changed\n"
 
 # Installing packages
 printf "\n### Installing dnf-automatic ###\n"
 printf "\n Installing dnf-automatic packages...\n "
-if dnf install -y dnf-automatic; then
+if sudo dnf install -y dnf-automatic; then
   printf "Installation complete! \nEditing /etc/dnf/automatic.conf file\n"
 
   # Check file, create backup and modify if exists
@@ -74,19 +76,19 @@ if dnf install -y dnf-automatic; then
     printf "File does not exist!\n"
   else
     printf "\nCreating backup of $dnfConf config file ...\n"
-    cp -v $dnfConf $dnfConf.bak | while read line; do
+    sudo cp -v $dnfConf $dnfConf.bak | while read line; do
       printf "$line\n"
     done
     printf "\nChanging upgrade_type to security and applying updates\n"
 
     # Check if the line exist first before modify
-    grep -Eq '^[[:space:]]*upgrade_type[[:space:]]*=' $dnfConf ||
-      echo 'upgrade_type = default' >>$dnfConf
-    grep -Eq '^[[:space:]]*apply_updates[[:space:]]*=' $dnfConf ||
-      echo 'apply_updates = no' >>$dnfConf
+    # grep -Eq '^[[:space:]]*upgrade_type[[:space:]]*=' $dnfConf ||
+    #   echo 'upgrade_type = default' >>$dnfConf
+    # grep -Eq '^[[:space:]]*apply_updates[[:space:]]*=' $dnfConf ||
+    #   echo 'apply_updates = no' >>$dnfConf
 
     # Apply change if the files already exists
-    sed -i -e 's/^upgrade_type *= * *default/upgrade_type = security/' \
+    sudo sed -i -e 's/^upgrade_type *= * *default/upgrade_type = security/' \
       -e 's/^apply_updates *= * *no/apply_updates = yes/' $dnfConf
     printf "\nFile /etc/dnf/automatic.conf has been updated\n"
     grep -En 'upgrade_type|apply_updates' $dnfConf | awk '{print "Line Number: " $1 " " $2 " " $3}'
@@ -100,7 +102,7 @@ fi
 printf "\n### Enable and Start services ###\n"
 printf "\n Enable and start download timer and automatic install services \n"
 for service in dnf-automatic-download.timer dnf-automatic-install.timer; do
-  systemctl enable --now "$service"
+  sudo systemctl enable --now "$service"
 done
 
 # Modify chronyd config file"
@@ -115,10 +117,10 @@ else
 
   # Create backup and modify config file
   printf "\n### Creating backup of $chronydConf config file ... #####\n"
-  cp -v $chronydConf $chronydConf.bak | while read line; do
+  sudo cp -v $chronydConf $chronydConf.bak | while read line; do
     printf "$line\n"
   done
-  sed -i -e 's/OPTIONS=-"F/OPTIONS="-R -F/' $chronydConf
+  sudo sed -i -e 's/OPTIONS="-F/OPTIONS="-R -F/' $chronydConf
   printf "$chronydConf has been altered\n"
   printf "File name: $chronydConf \n"
   # grep -En $chronydConf | awk '{print "Line number: " $1 " " $2 " " $3}'
