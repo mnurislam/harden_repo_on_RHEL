@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Filename: RHELHardenRepo.sh
 # Description: Setting up Veeam hardened repo for RHEL
 # Author: Muhammad Nur Islam
